@@ -1,0 +1,43 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Parameters:
+  IncomingBucketName:
+    Type: 'String'
+    Description: 'Incoming Bucket Name'
+    Default: 'some-bucket-name-here'
+Resources:
+  IncomingFileQueue:
+    Type: 'AWS::SQS::Queue'
+    Properties: {}
+  SQSQueuePolicy:
+    Type: 'AWS::SQS::QueuePolicy'
+    Properties:
+      PolicyDocument:
+        Id: 'MyQueuePolicy'
+        Version: '2012-10-17'
+        Statement:
+          - Sid: 'Statement-id'
+            Effect: 'Allow'
+            Principal:
+              AWS: "s3.amazonaws.com"
+            Action: 'sqs:SendMessage'
+            Resource:
+              Fn::GetAtt: [ IncomingFileQueue, Arn ]
+      Queues:
+        - Ref: IncomingFileQueue
+		
+  IncomingFileBucket:
+    Type: 'AWS::S3::Bucket'
+    DependsOn:
+      - SQSQueuePolicy
+      - IncomingFileQueue
+    Properties:
+      AccessControl: BucketOwnerFullControl
+      BucketName:
+        Ref: IncomingBucketName
+      NotificationConfiguration:
+        QueueConfigurations:
+          - Event:
+              s3:ObjectCreated:Put
+            Queue:
+              Fn::GetAtt: [ IncomingFileQueue, Arn ]
